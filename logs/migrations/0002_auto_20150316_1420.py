@@ -13,12 +13,12 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='logs',
-            name='user',
-            field=models.ForeignKey(to=settings.AUTH_USER_MODEL),
-            preserve_default=False,
-        ),
+        # migrations.AddField(
+        #     model_name='logs',
+        #     name='user',
+        #     field=models.ForeignKey(to=settings.AUTH_USER_MODEL),
+        #     preserve_default=False,
+        # ),
         migrations.AlterField(
             model_name='logs',
             name='date',
