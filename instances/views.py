@@ -7,6 +7,8 @@ import re
 from string import letters, digits
 from random import choice
 from bisect import insort
+
+from django.core.paginator import Paginator
 from django.http import HttpResponse, HttpResponseRedirect
 from django.core.urlresolvers import reverse
 from django.shortcuts import render, get_object_or_404
@@ -69,19 +71,25 @@ def instances(request):
                 all_user_vms[usr_inst] = conn.get_user_instances(usr_inst.instance.name)
                 all_user_vms[usr_inst].update({'compute_id': usr_inst.instance.compute.id})
     else:
+        all_vms = []
         for comp in computes:
             if connection_manager.host_is_up(comp.type, comp.hostname):
                 try:
                     conn = wvmHostDetails(comp, comp.login, comp.password, comp.type)
                     if conn.get_host_instances():
                         all_host_vms[comp.id, comp.name] = conn.get_host_instances()
+
                         for vm, info in conn.get_host_instances().items():
                             try:
                                 check_uuid = Instance.objects.get(compute_id=comp.id, name=vm)
                                 if check_uuid.uuid != info['uuid']:
                                     check_uuid.save()
                                 all_host_vms[comp.id, comp.name][vm]['is_template'] = check_uuid.is_template
-                                all_host_vms[comp.id, comp.name][vm]['userinstances'] = get_userinstances_info(check_uuid)
+                                all_host_vms[comp.id, comp.name][vm]['userinstances'] = get_userinstances_info(
+                                    check_uuid)
+                                info['comp'] = comp
+                                info['name'] = vm
+                                all_vms.append(info)
                             except Instance.DoesNotExist:
                                 check_uuid = Instance(compute_id=comp.id, name=vm, uuid=info['uuid'])
                                 check_uuid.save()
@@ -89,6 +97,9 @@ def instances(request):
                 except libvirtError as lib_err:
                     error_messages.append(lib_err)
 
+        paginator = Paginator(all_vms, 15)  # Show 25 contacts per page
+        page = request.GET.get('page', 1)
+        vms = paginator.page(page)
     if request.method == 'POST':
         name = request.POST.get('name', '')
         compute_id = request.POST.get('compute_id', '')
@@ -120,7 +131,8 @@ def instances(request):
             if 'getvvfile' in request.POST:
                 msg = _("Send console.vv file")
                 addlogmsg(request.user.username, instance.name, msg)
-                response = HttpResponse(content='', content_type='application/x-virt-viewer', status=200, reason=None, charset='utf-8')
+                response = HttpResponse(content='', content_type='application/x-virt-viewer', status=200, reason=None,
+                                        charset='utf-8')
                 response.writelines('[virt-viewer]\n')
                 response.writelines('type=' + conn.graphics_type(name) + '\n')
                 response.writelines('host=' + conn.graphics_listen(name) + '\n')
@@ -200,21 +212,21 @@ def instance(request, compute_id, vname):
                 {'dev': disk['dev'], 'storage': disk['storage'],
                  'image': image, 'format': disk['format']})
         return clone_disk
-    
+
     def filesizefstr(size_str):
         if size_str == '':
             return 0
         size_str = size_str.encode('ascii', 'ignore').upper().translate(None, " B")
         if 'K' == size_str[-1]:
-            return long(float(size_str[:-1]))<<10
+            return long(float(size_str[:-1])) << 10
         elif 'M' == size_str[-1]:
-            return long(float(size_str[:-1]))<<20
+            return long(float(size_str[:-1])) << 20
         elif 'G' == size_str[-1]:
-            return long(float(size_str[:-1]))<<30
+            return long(float(size_str[:-1])) << 30
         elif 'T' == size_str[-1]:
-            return long(float(size_str[:-1]))<<40
+            return long(float(size_str[:-1])) << 40
         elif 'P' == size_str[-1]:
-            return long(float(size_str[:-1]))<<50
+            return long(float(size_str[:-1])) << 50
         else:
             return long(float(size_str))
 
@@ -237,15 +249,15 @@ def instance(request, compute_id, vname):
             if connection_manager.host_is_up(usr_inst.instance.compute.type,
                                              usr_inst.instance.compute.hostname):
                 conn = wvmInstance(usr_inst.instance.compute,
-                                      usr_inst.instance.compute.login,
-                                      usr_inst.instance.compute.password,
-                                      usr_inst.instance.compute.type,
-                                      usr_inst.instance.name)
+                                   usr_inst.instance.compute.login,
+                                   usr_inst.instance.compute.password,
+                                   usr_inst.instance.compute.type,
+                                   usr_inst.instance.name)
                 cpu += int(conn.get_vcpu())
                 memory += int(conn.get_memory())
                 for disk in conn.get_disk_device():
-                    disk_size += int(disk['size'])>>30
-        
+                    disk_size += int(disk['size']) >> 30
+
         ua = request.user.userattributes
         msg = ""
         if ua.max_instances > 0 and instance > ua.max_instances:
@@ -357,7 +369,8 @@ def instance(request, compute_id, vname):
                 instance.delete()
 
                 try:
-                    del_userinstance = UserInstance.objects.filter(instance__compute_id=compute_id, instance__name=vname)
+                    del_userinstance = UserInstance.objects.filter(instance__compute_id=compute_id,
+                                                                   instance__name=vname)
                     del_userinstance.delete()
                 except UserInstance.DoesNotExist:
                     pass
@@ -425,13 +438,13 @@ def instance(request, compute_id, vname):
                 disks_new = []
                 for disk in disks:
                     input_disk_size = filesizefstr(request.POST.get('disk_size_' + disk['dev'], ''))
-                    if input_disk_size > disk['size']+(64<<20):
+                    if input_disk_size > disk['size'] + (64 << 20):
                         disk['size_new'] = input_disk_size
-                        disks_new.append(disk) 
-                disk_sum = sum([disk['size']>>30 for disk in disks_new])
-                disk_new_sum = sum([disk['size_new']>>30 for disk in disks_new])
-                quota_msg = check_user_quota(0, int(new_vcpu)-vcpu, int(new_memory)-memory, disk_new_sum-disk_sum)
-                if not request.user.is_superuser and quota_msg:    
+                        disks_new.append(disk)
+                disk_sum = sum([disk['size'] >> 30 for disk in disks_new])
+                disk_new_sum = sum([disk['size_new'] >> 30 for disk in disks_new])
+                quota_msg = check_user_quota(0, int(new_vcpu) - vcpu, int(new_memory) - memory, disk_new_sum - disk_sum)
+                if not request.user.is_superuser and quota_msg:
                     msg = _("User %s quota reached, cannot resize '%s'!" % (quota_msg, instance.name))
                     error_messages.append(msg)
                 else:
@@ -530,7 +543,8 @@ def instance(request, compute_id, vname):
                             error_messages.append(msg)
                     if not error_messages:
                         if not conn.set_console_passwd(passwd):
-                            msg = _("Error setting console password. You should check that your instance have an graphic device.")
+                            msg = _(
+                                "Error setting console password. You should check that your instance have an graphic device.")
                             error_messages.append(msg)
                         else:
                             msg = _("Set VNC password")
@@ -598,13 +612,13 @@ def instance(request, compute_id, vname):
                 if 'change_options' in request.POST:
                     instance.is_template = request.POST.get('is_template', False)
                     instance.save()
-                    
+
                     options = {}
                     for post in request.POST:
                         if post in ['title', 'description']:
                             options[post] = request.POST.get(post, '')
                     conn.set_options(options)
-                    
+
                     msg = _("Edit options")
                     addlogmsg(request.user.username, instance.name, msg)
                     return HttpResponseRedirect(request.get_full_path() + '#options')
@@ -614,11 +628,11 @@ def instance(request, compute_id, vname):
                     clone_data = {}
                     clone_data['name'] = request.POST.get('name', '')
 
-                    disk_sum = sum([disk['size']>>30 for disk in disks])
+                    disk_sum = sum([disk['size'] >> 30 for disk in disks])
                     quota_msg = check_user_quota(1, vcpu, memory, disk_sum)
                     check_instance = Instance.objects.filter(name=clone_data['name'])
-                    
-                    if not request.user.is_superuser and quota_msg:    
+
+                    if not request.user.is_superuser and quota_msg:
                         msg = _("User %s quota reached, cannot create '%s'!" % (quota_msg, clone_data['name']))
                         error_messages.append(msg)
                     elif check_instance:
@@ -634,7 +648,8 @@ def instance(request, compute_id, vname):
                         new_uuid = conn.clone_instance(clone_data)
                         new_instance = Instance(compute_id=compute_id, name=clone_data['name'], uuid=new_uuid)
                         new_instance.save()
-                        userinstance = UserInstance(instance_id=new_instance.id, user_id=request.user.id, is_delete=True)
+                        userinstance = UserInstance(instance_id=new_instance.id, user_id=request.user.id,
+                                                    is_delete=True)
                         userinstance.save()
 
                         msg = _("Clone of '%s'" % instance.name)
@@ -782,10 +797,11 @@ def inst_graph(request, compute_id, vname):
     response.write(data)
     return response
 
+
 @login_required
 def guess_mac_address(request, vname):
     dhcp_file = '/srv/webvirtcloud/dhcpd.conf'
-    data = { 'vname': vname, 'mac': '52:54:00:' }
+    data = {'vname': vname, 'mac': '52:54:00:'}
     if os.path.isfile(dhcp_file):
         with open(dhcp_file, 'r') as f:
             name_found = False
@@ -796,6 +812,7 @@ def guess_mac_address(request, vname):
                     data['mac'] = line.split(' ')[-1].strip().strip(';')
                     break
     return HttpResponse(json.dumps(data));
+
 
 @login_required
 def guess_clone_name(request):
@@ -813,10 +830,11 @@ def guess_clone_name(request):
                         return HttpResponse(json.dumps({'name': hostname}))
     return HttpResponse(json.dumps({}));
 
+
 @login_required
 def check_instance(request, vname):
     check_instance = Instance.objects.filter(name=vname)
-    data = { 'vname': vname, 'exists': False }
+    data = {'vname': vname, 'exists': False}
     if check_instance:
         data['exists'] = True
     return HttpResponse(json.dumps(data));
