@@ -9,7 +9,7 @@ from random import choice
 from bisect import insort
 
 from django.core.paginator import Paginator
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.core.urlresolvers import reverse
 from django.shortcuts import render, get_object_or_404
 from django.utils.translation import ugettext_lazy as _
@@ -97,7 +97,7 @@ def instances(request):
                 except libvirtError as lib_err:
                     error_messages.append(lib_err)
 
-        paginator = Paginator(all_vms, 15)  # Show 25 contacts per page
+        paginator = Paginator(all_vms, 15)  # Show 15 contacts per page
         page = request.GET.get('page', 1)
         vms = paginator.page(page)
     if request.method == 'POST':
@@ -169,6 +169,283 @@ def instances(request):
     return render(request, 'instances.html', locals())
 
 
+# @login_required
+# def get_instances(request):
+#     """
+#     :param request:
+#     :return:
+#     """
+#
+#     error_messages = []
+#     all_host_vms = {}
+#     all_user_vms = {}
+#     computes = Compute.objects.all()
+#
+#     def get_userinstances_info(instance):
+#         info = {}
+#         uis = UserInstance.objects.filter(instance=instance)
+#         info['count'] = len(uis)
+#         if len(uis) > 0:
+#             info['first_user'] = uis[0]
+#         else:
+#             info['first_user'] = None
+#         return info
+#
+#     if not request.user.is_superuser:
+#         user_instances = UserInstance.objects.filter(user_id=request.user.id)
+#         for usr_inst in user_instances:
+#             if connection_manager.host_is_up(usr_inst.instance.compute.type,
+#                                              usr_inst.instance.compute.hostname):
+#                 conn = wvmHostDetails(usr_inst.instance.compute,
+#                                       usr_inst.instance.compute.login,
+#                                       usr_inst.instance.compute.password,
+#                                       usr_inst.instance.compute.type)
+#                 all_user_vms[usr_inst] = conn.get_user_instances(usr_inst.instance.name)
+#                 all_user_vms[usr_inst].update({'compute_id': usr_inst.instance.compute.id})
+#     else:
+#         all_vms = []
+#         for comp in computes:
+#             if connection_manager.host_is_up(comp.type, comp.hostname):
+#                 try:
+#                     conn = wvmHostDetails(comp, comp.login, comp.password, comp.type)
+#                     if conn.get_host_instances():
+#                         for vm_name, vm_info in conn.get_host_instances().items():
+#                             try:
+#                                 check_uuid = Instance.objects.get(compute_id=comp.id, name=vm_name)
+#                                 if check_uuid.uuid != vm_info['uuid']:
+#                                     check_uuid.save()
+#                                 vm_info['is_template'] = check_uuid.is_template
+#                                 vm_info['userinstances'] = get_userinstances_info(check_uuid)
+#                                 vm_info['comp_name'] = comp.name
+#                                 vm_info['comp_id'] = comp.id
+#                                 vm_info['name'] = vm_name
+#                                 all_vms.append(vm_info)
+#                             except Instance.DoesNotExist:
+#                                 check_uuid = Instance(compute_id=comp.id, name=vm_name, uuid=vm_info['uuid'])
+#                                 check_uuid.save()
+#                     conn.close()
+#                 except libvirtError as lib_err:
+#                     error_messages.append(lib_err)
+#         start = int(request.GET.get('start'))
+#         length = int(request.GET.get('length'))
+#         vms = all_vms[start:start + length - 1]
+#         # if len(all_vms) >= page * 15:
+#         #     vms = all_vms[(page - 1) * 15:page * 15 - 1]
+#         # else:
+#         #     vms = all_vms[(page - 1) * 15:]
+#         return JsonResponse(
+#             data={'data': vms, "recordsTotal": len(all_vms), "recordsFiltered": len(all_vms)})
+#     if request.method == 'POST':
+#         name = request.POST.get('name', '')
+#         compute_id = request.POST.get('compute_id', '')
+#         instance = Instance.objects.get(compute_id=compute_id, name=name)
+#         try:
+#             conn = wvmInstances(instance.compute.hostname,
+#                                 instance.compute.login,
+#                                 instance.compute.password,
+#                                 instance.compute.type)
+#             if 'poweron' in request.POST:
+#                 msg = _("Power On")
+#                 addlogmsg(request.user.username, instance.name, msg)
+#                 conn.start(name)
+#                 return HttpResponseRedirect(request.get_full_path())
+#
+#             if 'poweroff' in request.POST:
+#                 msg = _("Power Off")
+#                 addlogmsg(request.user.username, instance.name, msg)
+#                 conn.shutdown(name)
+#                 return HttpResponseRedirect(request.get_full_path())
+#
+#             if 'powercycle' in request.POST:
+#                 msg = _("Power Cycle")
+#                 conn.force_shutdown(name)
+#                 conn.start(name)
+#                 addlogmsg(request.user.username, instance.name, msg)
+#                 return HttpResponseRedirect(request.get_full_path())
+#
+#             if 'getvvfile' in request.POST:
+#                 msg = _("Send console.vv file")
+#                 addlogmsg(request.user.username, instance.name, msg)
+#                 response = HttpResponse(content='', content_type='application/x-virt-viewer', status=200, reason=None,
+#                                         charset='utf-8')
+#                 response.writelines('[virt-viewer]\n')
+#                 response.writelines('type=' + conn.graphics_type(name) + '\n')
+#                 response.writelines('host=' + conn.graphics_listen(name) + '\n')
+#                 response.writelines('port=' + conn.graphics_port(name) + '\n')
+#                 response.writelines('title=' + conn.domain_name(name) + '\n')
+#                 response.writelines('password=' + conn.graphics_passwd(name) + '\n')
+#                 response.writelines('enable-usbredir=1\n')
+#                 response.writelines('disable-effects=all\n')
+#                 response.writelines('secure-attention=ctrl+alt+ins\n')
+#                 response.writelines('release-cursor=ctrl+alt\n')
+#                 response.writelines('fullscreen=1\n')
+#                 response.writelines('delete-this-file=1\n')
+#                 response['Content-Disposition'] = 'attachment; filename="console.vv"'
+#                 return response
+#
+#             if request.user.is_superuser:
+#
+#                 if 'suspend' in request.POST:
+#                     msg = _("Suspend")
+#                     addlogmsg(request.user.username, instance.name, msg)
+#                     conn.suspend(name)
+#                     return HttpResponseRedirect(request.get_full_path())
+#
+#                 if 'resume' in request.POST:
+#                     msg = _("Resume")
+#                     addlogmsg(request.user.username, instance.name, msg)
+#                     conn.resume(name)
+#                     return HttpResponseRedirect(request.get_full_path())
+#
+#         except libvirtError as lib_err:
+#             error_messages.append(lib_err)
+#             addlogmsg(request.user.username, instance.name, lib_err.message)
+#
+#     return render(request, 'instances.html', locals())
+
+@login_required
+def get_instances(request):
+    """
+    :param request:
+    :return:
+    """
+
+    error_messages = []
+    all_host_vms = {}
+    all_user_vms = {}
+    computes = Compute.objects.all()
+
+    def get_userinstances_info(instance):
+        info = {}
+        uis = UserInstance.objects.filter(instance=instance)
+        info['count'] = len(uis)
+        if len(uis) > 0:
+            info['first_user'] = uis[0]
+        else:
+            info['first_user'] = None
+        return info
+
+    if not request.user.is_superuser:
+        user_instances = UserInstance.objects.filter(user_id=request.user.id)
+        for usr_inst in user_instances:
+            if connection_manager.host_is_up(usr_inst.instance.compute.type,
+                                             usr_inst.instance.compute.hostname):
+                conn = wvmHostDetails(usr_inst.instance.compute,
+                                      usr_inst.instance.compute.login,
+                                      usr_inst.instance.compute.password,
+                                      usr_inst.instance.compute.type)
+                all_user_vms[usr_inst] = conn.get_user_instances(usr_inst.instance.name)
+                all_user_vms[usr_inst].update({'compute_id': usr_inst.instance.compute.id})
+    else:
+        all_vms = []
+        for comp in computes:
+            if connection_manager.host_is_up(comp.type, comp.hostname):
+                try:
+                    conn = wvmHostDetails(comp, comp.login, comp.password, comp.type)
+                    if conn.get_host_instances():
+                        for vm_name, vm_info in conn.get_host_instances().items():
+                            try:
+                                vm = []
+                                check_uuid = Instance.objects.get(compute_id=comp.id, name=vm_name)
+                                if check_uuid.uuid != vm_info['uuid']:
+                                    check_uuid.save()
+                                vm_info['is_template'] = check_uuid.is_template
+                                vm_info['userinstances'] = get_userinstances_info(check_uuid)
+                                vm_info['comp_name'] = comp.name
+                                vm_info['comp_id'] = comp.id
+                                vm_info['name'] = vm_name
+                                vm.append(vm_name)
+                                vm.append(comp.name)
+                                vm.append(vm_info['status'])
+                                vm.append(vm_info['vcpu'])
+                                vm.append(vm_info['memory'])
+                                vm.append(vm_info['is_template'])
+                                vm.append(comp.id)
+                                all_vms.append(vm)
+                            except Instance.DoesNotExist:
+                                check_uuid = Instance(compute_id=comp.id, name=vm_name, uuid=vm_info['uuid'])
+                                check_uuid.save()
+                    conn.close()
+                except libvirtError as lib_err:
+                    error_messages.append(lib_err)
+        # start = int(request.GET.get('start'))
+        # length = int(request.GET.get('length'))
+        # print(request.GET.get('search'))
+        # vms = all_vms[start:start + length - 1]
+        # print(vms)
+        # if len(all_vms) >= page * 15:
+        #     vms = all_vms[(page - 1) * 15:page * 15 - 1]
+        # else:
+        #     vms = all_vms[(page - 1) * 15:]
+        return JsonResponse(
+            data={'data': all_vms})
+    if request.method == 'POST':
+        name = request.POST.get('name', '')
+        compute_id = request.POST.get('compute_id', '')
+        instance = Instance.objects.get(compute_id=compute_id, name=name)
+        try:
+            conn = wvmInstances(instance.compute.hostname,
+                                instance.compute.login,
+                                instance.compute.password,
+                                instance.compute.type)
+            if 'poweron' in request.POST:
+                msg = _("Power On")
+                addlogmsg(request.user.username, instance.name, msg)
+                conn.start(name)
+                return HttpResponseRedirect(request.get_full_path())
+
+            if 'poweroff' in request.POST:
+                msg = _("Power Off")
+                addlogmsg(request.user.username, instance.name, msg)
+                conn.shutdown(name)
+                return HttpResponseRedirect(request.get_full_path())
+
+            if 'powercycle' in request.POST:
+                msg = _("Power Cycle")
+                conn.force_shutdown(name)
+                conn.start(name)
+                addlogmsg(request.user.username, instance.name, msg)
+                return HttpResponseRedirect(request.get_full_path())
+
+            if 'getvvfile' in request.POST:
+                msg = _("Send console.vv file")
+                addlogmsg(request.user.username, instance.name, msg)
+                response = HttpResponse(content='', content_type='application/x-virt-viewer', status=200, reason=None,
+                                        charset='utf-8')
+                response.writelines('[virt-viewer]\n')
+                response.writelines('type=' + conn.graphics_type(name) + '\n')
+                response.writelines('host=' + conn.graphics_listen(name) + '\n')
+                response.writelines('port=' + conn.graphics_port(name) + '\n')
+                response.writelines('title=' + conn.domain_name(name) + '\n')
+                response.writelines('password=' + conn.graphics_passwd(name) + '\n')
+                response.writelines('enable-usbredir=1\n')
+                response.writelines('disable-effects=all\n')
+                response.writelines('secure-attention=ctrl+alt+ins\n')
+                response.writelines('release-cursor=ctrl+alt\n')
+                response.writelines('fullscreen=1\n')
+                response.writelines('delete-this-file=1\n')
+                response['Content-Disposition'] = 'attachment; filename="console.vv"'
+                return response
+
+            if request.user.is_superuser:
+
+                if 'suspend' in request.POST:
+                    msg = _("Suspend")
+                    addlogmsg(request.user.username, instance.name, msg)
+                    conn.suspend(name)
+                    return HttpResponseRedirect(request.get_full_path())
+
+                if 'resume' in request.POST:
+                    msg = _("Resume")
+                    addlogmsg(request.user.username, instance.name, msg)
+                    conn.resume(name)
+                    return HttpResponseRedirect(request.get_full_path())
+
+        except libvirtError as lib_err:
+            error_messages.append(lib_err)
+            addlogmsg(request.user.username, instance.name, lib_err.message)
+
+    return render(request, 'instances.html', locals())
 @login_required
 def instance(request, compute_id, vname):
     """
