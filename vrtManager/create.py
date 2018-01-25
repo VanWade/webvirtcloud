@@ -142,7 +142,7 @@ class wvmCreate(wvmConnect):
 
     def create_instance(self, name, memory, vcpu, host_model, uuid, images, cache_mode, networks, virtio, mac=None):
         """
-        Create VM function
+        Create instance function
         """
         memory = int(memory) * 1024
 

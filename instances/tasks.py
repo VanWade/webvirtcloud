@@ -10,7 +10,7 @@ from vrtManager.hostdetails import wvmHostDetails
 from vrtManager.instance import wvmInstance, wvmInstances
 from vrtManager.connection import connection_manager
 from vrtManager.util import randomPasswd
-from .models import VM
+from .models import Instance
 from celery.utils.log import get_task_logger
 from libvirt import libvirtError
 import os
@@ -49,14 +49,15 @@ def update_kvm_status():
                 conn = wvmHostDetails(comp, comp.login, comp.password, comp.type)
                 for vm_name, vm_info in conn.get_host_instances().items():
                     vm = list()
-                    vm_object, created = VM.objects.update_or_create(compute_id=comp.id,
-                                                                     name=vm_name,
-                                                                     defaults={'status': vm_info['status'],
-                                                                               'vcpu': vm_info['vcpu'],
-                                                                               'memory': vm_info['memory'],
-                                                                               'description': vm_info['description'],
-                                                                               'title': vm_info['title'],
-                                                                               'uuid': vm_info['uuid']})
+                    vm_object, created = Instance.objects.update_or_create(compute_id=comp.id,
+                                                                           name=vm_name,
+                                                                           defaults={'status': vm_info['status'],
+                                                                                     'vcpu': vm_info['vcpu'],
+                                                                                     'memory': vm_info['memory'],
+                                                                                     'description': vm_info[
+                                                                                         'description'],
+                                                                                     'title': vm_info['title'],
+                                                                                     'uuid': vm_info['uuid']})
                     if created:
                         logger.info('vm {} was created'.format(vm_name))
                     else:

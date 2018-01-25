@@ -3,7 +3,7 @@ from django.shortcuts import render
 from django.http import HttpResponseRedirect
 from django.core.urlresolvers import reverse
 from django.contrib.auth.decorators import login_required
-from instances.models import Instance, VM
+from instances.models import Instance
 from vrtManager.instance import wvmInstance
 from webvirtcloud.settings import WS_PORT
 from webvirtcloud.settings import WS_PUBLIC_HOST
@@ -24,8 +24,7 @@ def console(request):
         temptoken = token.split('-', 1)
         host = int(temptoken[0])
         uuid = temptoken[1]
-        # instance = Instance.objects.get(compute_id=host, uuid=uuid)
-        instance = VM.objects.get(compute_id=host, uuid=uuid)
+        instance = Instance.objects.get(compute_id=host, uuid=uuid)
         conn = wvmInstance(instance.compute.hostname,
                            instance.compute.login,
                            instance.compute.password,

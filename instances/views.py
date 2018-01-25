@@ -8,8 +8,7 @@ from string import letters, digits
 from random import choice
 from bisect import insort
 
-from django.core.paginator import Paginator
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.core.urlresolvers import reverse
 from django.shortcuts import render, get_object_or_404
 from django.utils.translation import ugettext_lazy as _
@@ -25,7 +24,6 @@ from libvirt import libvirtError, VIR_DOMAIN_XML_SECURE
 from webvirtcloud.settings import QEMU_KEYMAPS, QEMU_CONSOLE_TYPES
 from logs.views import addlogmsg
 from django.conf import settings
-from .models import VM
 from django.core.cache import caches
 
 
@@ -76,7 +74,7 @@ def instances(request):
     else:
         all_vms = caches['default'].get('all_vms')
         if not all_vms:
-            all_vm_objects = VM.objects.all()
+            all_vm_objects = Instance.objects.all()
             all_vms = []
             for vm_object in all_vm_objects:
                 vm = list()
@@ -372,7 +370,8 @@ def instance(request, compute_id, vname):
         return free_names
 
     def check_user_quota(instance, cpu, memory, disk_size):
-        user_instances = UserInstance.objects.filter(user_id=request.user.id, instance__is_template=False)
+        # user_instances = UserInstance.objects.filter(user_id=request.user.id, instance__is_template=False)
+        user_instances = UserInstance.objects.filter(user_id=request.user.id)
         instance += len(user_instances)
         for usr_inst in user_instances:
             if connection_manager.host_is_up(usr_inst.instance.compute.type,
