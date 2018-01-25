@@ -14,5 +14,4 @@ urlpatterns = [
         views.guess_clone_name, name='guess_clone_name'),
     url(r'^check_instance/(?P<vname>[\w\-\.]+)/$',
         views.check_instance, name='check_instance'),
-    url(r'^data/$', views.get_instances)
 ]

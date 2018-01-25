@@ -13,11 +13,7 @@
             {% if request.user.is_superuser %}
                 {% include 'create_inst_block.html' %}
             {% endif %}
-            {% if all_host_vms or all_user_vms %}
-                <div class="pull-right search">
-                    <input id="filter" class="form-control" type="text" placeholder="Search">
-                </div>
-            {% endif %}
+
             <h1 class="page-header">{% trans "Instances" %}</h1>
         </div>
     </div>
@@ -29,185 +25,29 @@
         <div class="col-lg-12">
             <div class="table-responsive">
                 {% if request.user.is_superuser %}
-                    {% if not all_host_vms %}
-                        <div class="col-lg-12">
-                            <div class="alert alert-warning alert-dismissable">
-                                <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
-                                <i class="fa fa-exclamation-triangle"></i>
-                                <strong>{% trans "Warning:" %}</strong> {% trans "You don't have any Instace" %}
-                            </div>
-                        </div>
-                    {% else %}
-                        <table class="table table-hover table-striped sortable-theme-bootstrap"
-                               data-sortable>
-                            <thead>
-                            <tr>
-                                <th>Name<br>Description</th>
-                                <th>Host<br>User</th>
-                                <th>Status</th>
-                                <th>VCPU</th>
-                                <th>Memory</th>
-                                <th data-sortable="false" style="width:205px;">Actions</th>
-                            </tr>
-                            </thead>
-                            <tbody class="searchable">
-                            {% for vm  in vms %}
-                                <tr>
-                                    <td><a href="{% url 'instance' vm.comp.id vm.name %}">{{ vm.name }}</a><br>
-                                        <small><em>{{ vm.title }}</em></small>
-                                    </td>
-                                    <td><a href="{% url 'overview' vm.comp.id %}">{{ vm.comp.name }}</a><br>
-                                        <small><em>{% if vm.userinstances.count > 0 %}
-                                            {{ vm.userinstances.first_user.user.username }}
-                                            {% if vm.userinstances.count > 1 %} (+
-                                                {{ vm.userinstances.count|add:"-1" }}){% endif %}{% endif %}</em>
-                                        </small>
-                                    </td>
-                                    <td>{% ifequal vm.status 1 %}
-                                        <span class="text-success">{% trans "Active" %}</span>
-                                    {% endifequal %}
-                                        {% ifequal vm.status 5 %}
-                                            <span class="text-danger">{% trans "Off" %}</span>
-                                        {% endifequal %}
-                                        {% ifequal vm.status 3 %}
-                                            <span class="text-warning">{% trans "Suspend" %}</span>
-                                        {% endifequal %}
-                                    </td>
-                                    <td>{{ vm.vcpu }}</td>
-                                    <td>{{ vm.memory }} {% trans "MB" %}</td>
-                                    <td>
-                                        <form action="" method="post" role="form">{% csrf_token %}
-                                            <input type="hidden" name="name" value="{{ vm.name }}"/>
-                                            <input type="hidden" name="compute_id" value="{{ vm.comp.0 }}"/>
-                                            {% ifequal vm.status 5 %}
-                                                {% if vm.is_template %}
-                                                    <button class="btn btn-sm btn-default" type="button"
-                                                            name="clone" title="{% trans "Clone" %}"
-                                                            onclick="goto_instance_clone({{ vm.comp.0 }}, '{{ vm.name }}');">
-                                                        <span class="glyphicon glyphicon-duplicate"></span>
-                                                    </button>
-                                                {% else %}
-                                                    <button class="btn btn-sm btn-default" type="submit"
-                                                            name="poweron" title="{% trans "Power On" %}">
-                                                        <span class="glyphicon glyphicon-play"></span>
-                                                    </button>
-                                                {% endif %}
-                                                <button class="btn btn-sm btn-default disabled"
-                                                        title="{% trans "Suspend" %}">
-                                                    <span class="glyphicon glyphicon-pause"></span>
-                                                </button>
-                                                <button class="btn btn-sm btn-default disabled"
-                                                        title="{% trans "Power Off" %}">
-                                                    <span class="glyphicon glyphicon-off"></span>
-                                                </button>
-                                                <button class="btn btn-sm btn-default disabled"
-                                                        title="{% trans "Power Cycle" %}">
-                                                    <span class="glyphicon glyphicon-refresh"></span>
-                                                </button>
-                                                <button class="btn btn-sm btn-default disabled"
-                                                        title="{% trans "VNC Console" %}">
-                                                    <span class="glyphicon glyphicon-eye-open"></span>
-                                                </button>
-                                            {% endifequal %}
-                                            {% ifequal vm.status 3 %}
-                                                <button class="btn btn-sm btn-default" type="submit" name="resume"
-                                                        title="{% trans "Resume" %}">
-                                                    <span class="glyphicon glyphicon-play"></span>
-                                                </button>
-                                                <button class="btn btn-sm btn-default disabled"
-                                                        title="{% trans "Suspend" %}">
-                                                    <span class="glyphicon glyphicon-pause"></span>
-                                                </button>
-                                                <button class="btn btn-sm btn-default disabled"
-                                                        title="{% trans "Power Off" %}">
-                                                    <span class="glyphicon glyphicon-off"></span>
-                                                </button>
-                                                <button class="btn btn-sm btn-default disabled"
-                                                        title="{% trans "Power Cycle" %}">
-                                                    <span class="glyphicon glyphicon-refresh"></span>
-                                                </button>
-                                                <button class="btn btn-sm btn-default disabled"
-                                                        title="{% trans "VNC Console" %}">
-                                                    <span class="glyphicon glyphicon-eye-open"></span>
-                                                </button>
-                                            {% endifequal %}
-                                            {% ifequal vm.status 1 %}
-                                                <button class="btn btn-sm btn-default disabled"
-                                                        title="{% trans "Power On" %}">
-                                                    <span class="glyphicon glyphicon-play"></span>
-                                                </button>
-                                                <button class="btn btn-sm btn-default" type="submit" name="suspend"
-                                                        title="{% trans "Suspend" %}">
-                                                    <span class="glyphicon glyphicon-pause"></span>
-                                                </button>
-                                                <button class="btn btn-sm btn-default" type="submit" name="poweroff"
-                                                        title="{% trans "Power Off" %}"
-                                                        onclick="return confirm('Are you sure?')">
-                                                    <span class="glyphicon glyphicon-off"></span>
-                                                </button>
-                                                <button class="btn btn-sm btn-default" type="submit"
-                                                        name="powercycle" title="{% trans "Power Cycle" %}"
-                                                        onclick="return confirm('Are you sure?')">
-                                                    <span class="glyphicon glyphicon-refresh"></span>
-                                                </button>
-                                                <a href="#" class="btn btn-sm btn-default"
-                                                   onclick='open_console("{{ vm.comp.0 }}-{{ vm.uuid }}")'
-                                                   title="{% trans "Console" %}">
-                                                    <span class="glyphicon glyphicon-eye-open"></span>
-                                                </a>
-                                            {% endifequal %}
-                                        </form>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                            </tbody>
-                        </table>
-                        {% if vms.has_other_pages %}
-                            <ul class="pagination">
-                                {% if vms.has_previous %}
-                                    <li><a href="?page={{ vms.previous_page_number }}">&laquo;</a></li>
-                                {% else %}
-                                    <li class="disabled"><span>&laquo;</span></li>
-                                {% endif %}
-                                {% for i in vms.paginator.page_range %}
-                                    {% if vms.number == i %}
-                                        <li class="active"><span>{{ i }} <span class="sr-only">(current)</span></span>
-                                        </li>
-                                    {% else %}
-                                        <li><a href="?page={{ i }}">{{ i }}</a></li>
-                                    {% endif %}
-                                {% endfor %}
-                                {% if vms.has_next %}
-                                    <li><a href="?page={{ vms.next_page_number }}">&raquo;</a></li>
-                                {% else %}
-                                    <li class="disabled"><span>&raquo;</span></li>
-                                {% endif %}
-                            </ul>
-                        {% endif %}
-                        <table id='vms_table' class="table table-hover table-striped sortable-theme-bootstrap"
-                               data-sortable>
-                            <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Host/User</th>
-                                <th>Status</th>
-                                <th>VCPU</th>
-                                <th>Memory</th>
-                                <th>Actions</th>
-                            </tr>
-                            </thead>
-                            <tfoot>
-                            <tr>
-                                <th>Name</th>
-                                <th>Host/User</th>
-                                <th>Status</th>
-                                <th>VCPU</th>
-                                <th>Memory</th>
-                                <th>Actions</th>
-                            </tr>
-                            </tfoot>
-                        </table>
-                    {% endif %}
+                    <table id='vms_table' class="table table-hover table-striped sortable-theme-bootstrap"
+                           data-sortable>
+                        <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Host/User</th>
+                            <th>Status</th>
+                            <th>VCPU</th>
+                            <th>Memory</th>
+                            <th>Actions</th>
+                        </tr>
+                        </thead>
+                        <tfoot>
+                        <tr>
+                            <th>Name</th>
+                            <th>Host/User</th>
+                            <th>Status</th>
+                            <th>VCPU</th>
+                            <th>Memory</th>
+                            <th>Actions</th>
+                        </tr>
+                        </tfoot>
+                    </table>
                 {% else %}
                     {% if not all_user_vms %}
                         <div class="col-lg-12">
@@ -327,7 +167,6 @@
     </div>
 {% endblock %}
 {% block script %}
-    <script src="{% static "js/sortable.min.js" %}"></script>
     <script src="{% static "js/jquery.js" %}"></script>
     <script src="{% static "js/jquery.dataTables.min.js" %}"></script>
     <script src="{% static "js/dataTables.bootstrap.min.js" %}"></script>
@@ -337,234 +176,310 @@
         }
     </script>
     <script>
-        function filter_table() {
-            var rex = new RegExp($(this).val(), 'i');
-            $('.searchable tr').hide();
-            $('.searchable tr').filter(function () {
-                return rex.test($(this).text());
-            }).show();
-            Cookies.set("instances_filter", $(this).val(), {expires: 1});
-        }
-
+        var all_vms = {{ all_vms | safe}};
+        console.log(all_vms);
+    </script>
+    <script>
         $(document).ready(function () {
-            instances_filter_cookie = Cookies.get("instances_filter");
-            if (instances_filter_cookie) {
-                $('#filter').val(instances_filter_cookie);
-                $('#filter').each(filter_table);
-            }
-            (function ($) {
-                $('#filter').keyup(filter_table)
-            }(jQuery));
-            {#            $('#vms_table').DataTable({#}
-            {#                "processing": true,#}
-            {#                "serverSide": true,#}
-            {#                "paging": true,#}
-            {#                "lengthMenu": [[15, 25, 50, 100, -1], [15, 25, 50, 100, "All"]],#}
-            {#                "ajax": "/instance/data/",#}
-            {#                #}
-            {#                "columnDefs": [#}
-            {#                    {#}
-            {#                        // The `data` parameter refers to the data for the cell (defined by the#}
-            {#                        // `data` option, which defaults to the column being worked with, in#}
-            {#                        // this case `data: 0`.#}
-            {#                        "render": function (data, type, row) {#}
-            {#                            return row["name"];#}
-            {#                        },#}
-            {#                        "targets": 0#}
-            {#                    },#}
-            {#                    {#}
-            {#                        "render": function (data, type, row) {#}
-            {#                            console.log(row);#}
-            {#                            return row["comp_name"];#}
-            {#                        },#}
-            {#                        "targets": 1#}
-            {#                    },#}
-            {#                    {#}
-            {#                        "render": function (data, type, row) {#}
-            {#                            if (row["status"] == 1) {#}
-            {#                                return '<span class="text-success">{% trans "Active" %}</span>';#}
-            {#                            } else if (row["status"] == 5) {#}
-            {#                                return '<span class="text-danger">{% trans "Off" %}</span>';#}
-            {#                            } else if (row["status"] == 3) {#}
-            {#                                return '<span class= "text-warning" > {% trans "Suspend" %} < /span>';#}
-            {#                            }#}
-            {#                        },#}
-            {#                        "targets": 2#}
-            {#                    },#}
-            {#                    {#}
-            {#                        "render": function (data, type, row) {#}
-            {#                            return row["vcpu"];#}
-            {#                        },#}
-            {#                        "targets": 3#}
-            {#                    },#}
-            {#                    {#}
-            {#                        "render": function (data, type, row) {#}
-            {#                            return row["memory"] + " MB";#}
-            {#                        },#}
-            {#                        "targets": 4#}
-            {#                    },#}
-            {#                    {#}
-            {#                        "render": function (data, type, row) {#}
-            {#                            if (row["status"] == 5) {#}
-            {#                                var result = '';#}
-            {#                                if (row["is_template"]) {#}
-            {#                                    result += '<button class = "btn btn-sm btn-default" type = "button" name = "clone" title = "Clone" onclick = "goto_instance_clone(' + row["compute_id"] + ',' + row["name"] + ')">' + '<span class = "glyphicon glyphicon-duplicate" > </span> </button>'#}
-            {#                                } else {#}
-            {#                                    result += '<button class = "btn btn-sm btn-default" type = "submit" name = "poweron" title = "Power On"> <span class = "glyphicon glyphicon-play"> </span> </button>'#}
-            {#                                }#}
-            {#                                return result + '<button class="btn btn-sm btn-default disabled" title="Suspend"> <span class="glyphicon glyphicon-pause"></span></button>'#}
-            {#                                    + '<button class = "btn btn-sm btn-default disabled" title = "Power Off"> <span class = "glyphicon glyphicon-off" > </span> </button>'#}
-            {#                                    + '<button class = "btn btn-sm btn-default disabled" title = "Power Cycle"> <span class = "glyphicon glyphicon-refresh" > </span> </button>'#}
-            {#                                    + '<button class = "btn btn-sm btn-default disabled" title = "VNC Console"> <span class = "glyphicon glyphicon-eye-open" > </span> </button>';#}
-            {#                            }#}
-            {#                            else if (row["status"] == 3) {#}
-            {#                                return '<button class="btn btn-sm btn-default" type="submit" name="resume" title="Resume"> <span class="glyphicon glyphicon-play"></span> </button>'#}
-            {#                                    + '<button class="btn btn-sm btn-default disabled" title="Suspend"> <span class="glyphicon glyphicon-pause"></span> </button>'#}
-            {#                                    + '<button class= "btn btn-sm btn-default disabled" title = "Power Off"> <span class= "glyphicon glyphicon-off" > </span> </button>'#}
-            {#                                    + '<button class= "btn btn-sm btn-default disabled" title = "Power Cycle"> <span class= "glyphicon glyphicon-refresh" > </span> </button>'#}
-            {#                                    + '<button class= "btn btn-sm btn-default disabled" title = "VNC Console"> <span class="glyphicon glyphicon-eye-open"></span> </button>';#}
-            {#                            }#}
-            {#                            else if (row["status"] == 1) {#}
-            {#                                return '<button class= "btn btn-sm btn-default disabled" title = "Power On"> <span class= "glyphicon glyphicon-play" > </span> </button>'#}
-            {#                                    + '<button class="btn btn-sm btn-default" type="submit" name="suspend" title="Suspend"> <span class="glyphicon glyphicon-pause"></span> </button>'#}
-            {#                                    + '<button class= "btn btn-sm btn-default" type = "submit" name = "poweroff" title = "Power Off"> <span class= "glyphicon glyphicon-off" > </span> </button>'#}
-            {#                                    + '<button class= "btn btn-sm btn-default" type = "submit" name = "powercycle" title = "Power Cycle" onclick = "return confirm(' + 'Are you sure ?' + ')" > <span class= "glyphicon glyphicon-refresh" > </span> </button>'#}
-            {#                                    + '<a href = "#" class= "btn btn-sm btn-default" onclick = "open_console(' + row["compute_id"] + '-' + row["uuid"] + ')"' + 'title = "Console"> <span class= "glyphicon glyphicon-eye-open" > </span> </a>'#}
-            {#                            }#}
-            {#                        },#}
-            {#                        "targets": 5#}
-            {#                    },#}
-            {#                ],#}
-            {##}
-            {#                "initComplete": function () {#}
-            {#                    this.api().columns().every(function () {#}
-            {#                        var column = this;#}
-            {#                        var select = $('<select><option value=""></option></select>')#}
-            {#                            .appendTo($(column.footer()).empty())#}
-            {#                            .on('change', function () {#}
-            {#                                var val = $.fn.dataTable.util.escapeRegex(#}
-            {#                                    $(this).val()#}
-            {#                                );#}
-            {#                                var data = column.data();#}
-            {#                                column#}
-            {#                                    .search(val ? '^' + val + '$' : '', true, false)#}
-            {#                                    .draw();#}
-            {#                            });#}
-            {##}
-            {#                        column.cells('', column[0]).render('display').unique().sort().each(function (d, j) {#}
-            {#                            var val = $('<div/>').html(d).text();#}
-            {#                            select.append( '<option value="' + val + '">' + val + '</option>' );#}
-            {#                        });#}
-            {#                    });#}
-            {#                }#}
-            {#            });#}
-            $.ajax({
-                url: "/instance/data/",
-                type: 'GET',
-                dataType: 'json',
-                success: function (data) {
-                    $('#vms_table').DataTable({
-                        "paging": true,
-                        "lengthMenu": [[15, 25, 50, 100, -1], [15, 25, 50, 100, "All"]],
-                        "data": data.data,
+            $('#vms_table').DataTable({
+                "data": all_vms,
+                "paging": true,
+                "lengthMenu": [[15, 25, 50, 100, -1], [15, 25, 50, 100, "All"]],
+                "columnDefs": [
+                    {
+                        // The `data` parameter refers to the data for the cell (defined by the
+                        // `data` option, which defaults to the column being worked with, in
+                        // this case `data: 0`.
+                        "render": function (data, type, row) {
+                            return '<a href="/instance/' + row[5] + '/' + row[0] + '">' + data + '</a>'
+                        },
+                        "targets": 0
+                    },
+                    {
+                        "render": function (data, type, row) {
+                            return '<a href="/computes/overview/' + row[5] + '/' + '">' + data + '</a>';
+                        },
+                        "targets": 1
+                    },
+                    {
+                        "render": function (data, type, row) {
+                            if (data == 1) {
+                                return '<span class="text-success">Active</span>';
+                            } else if (data == 5) {
+                                return '<span class="text-danger">Off</span>';
+                            } else if (data == 3) {
+                                return '<span class= "text-warning">Suspend</span>';
+                            }
+                        },
+                        "targets": 2
+                    },
+                    {
+                        "render": function (data, type, row) {
+                            return data;
+                        },
+                        "targets": 3
+                    },
+                    {
+                        "render": function (data, type, row) {
+                            return data + " MB";
+                        },
+                        "targets": 4
+                    },
+                    {
+                        "render": function (data, type, row) {
+                            if (row[2] == 5) {
+                                return '<button class = "btn btn-sm btn-default" type = "submit" name = "poweron" title = "Power On"> <span class = "glyphicon glyphicon-play"> </span> </button>'
+                                    + '<button class="btn btn-sm btn-default disabled" title="Suspend"> <span class="glyphicon glyphicon-pause"></span></button>'
+                                    + '<button class = "btn btn-sm btn-default disabled" title = "Power Off"> <span class = "glyphicon glyphicon-off" > </span> </button>'
+                                    + '<button class = "btn btn-sm btn-default disabled" title = "Power Cycle"> <span class = "glyphicon glyphicon-refresh" > </span> </button>'
+                                    + '<button class = "btn btn-sm btn-default disabled" title = "VNC Console"> <span class = "glyphicon glyphicon-eye-open" > </span> </button>';
+                            }
+                            else if (row[2] == 3) {
+                                return '<button class="btn btn-sm btn-default" type="submit" name="resume" title="Resume"> <span class="glyphicon glyphicon-play"></span> </button>'
+                                    + '<button class="btn btn-sm btn-default disabled" title="Suspend"> <span class="glyphicon glyphicon-pause"></span> </button>'
+                                    + '<button class= "btn btn-sm btn-default disabled" title = "Power Off"> <span class= "glyphicon glyphicon-off" > </span> </button>'
+                                    + '<button class= "btn btn-sm btn-default disabled" title = "Power Cycle"> <span class= "glyphicon glyphicon-refresh" > </span> </button>'
+                                    + '<button class= "btn btn-sm btn-default disabled" title = "VNC Console"> <span class="glyphicon glyphicon-eye-open"></span> </button>';
+                            }
+                            else if (row[2] == 1) {
+                                return '<button class= "btn btn-sm btn-default disabled" title = "Power On"> <span class= "glyphicon glyphicon-play" > </span> </button>'
+                                    + '<button class="btn btn-sm btn-default" type="submit" name="suspend" title="Suspend"> <span class="glyphicon glyphicon-pause"></span> </button>'
+                                    + '<button class= "btn btn-sm btn-default" type = "submit" name = "poweroff" title = "Power Off"> <span class= "glyphicon glyphicon-off" > </span> </button>'
+                                    + '<button class= "btn btn-sm btn-default" type = "submit" name = "powercycle" title = "Power Cycle" onclick = "return confirm(' + 'Are you sure ?' + ')" > <span class= "glyphicon glyphicon-refresh" > </span> </button>'
+                                    + '<a href = "#" class= "btn btn-sm btn-default" onclick = "open_console(\'' + row[5] + '-' + row[6] + '\')"' + ' title = "Console"> <span class= "glyphicon glyphicon-eye-open" > </span> </a>'
+                            }
+                        },
+                        "targets": 5
+                    },
+                ],
 
-                        "columnDefs": [
-                            {
-                                // The `data` parameter refers to the data for the cell (defined by the
-                                // `data` option, which defaults to the column being worked with, in
-                                // this case `data: 0`.
-                                "render": function (data, type, row) {
-                                    return '<a href="/instance/' + row[6] + '/' + row[0] + '">' + data + '</a>'
-                                },
-                                "targets": 0
-                            },
-                            {
-                                "render": function (data, type, row) {
-                                    return '<a href="/computes/overview/' + row[6] + '/' + '">' + data + '</a>';
-                                },
-                                "targets": 1
-                            },
-                            {
-                                "render": function (data, type, row) {
-                                    if (data == 1) {
-                                        return '<span class="text-success">Active</span>';
-                                    } else if (data == 5) {
-                                        return '<span class="text-danger">Off</span>';
-                                    } else if (data == 3) {
-                                        return '<span class= "text-warning">Suspend</span>';
-                                    }
-                                },
-                                "targets": 2
-                            },
-                            {
-                                "render": function (data, type, row) {
-                                    return data;
-                                },
-                                "targets": 3
-                            },
-                            {
-                                "render": function (data, type, row) {
-                                    return data + " MB";
-                                },
-                                "targets": 4
-                            },
-                            {
-                                "render": function (data, type, row) {
-                                    if (row[2] == 5) {
-                                        var result = '';
-                                        if (row[5]) {
-                                            result += '<button class = "btn btn-sm btn-default" type = "button" name = "clone" title = "Clone" onclick = "goto_instance_clone(' + row["compute_id"] + ',' + row["name"] + ')">' + '<span class = "glyphicon glyphicon-duplicate" > </span> </button>'
-                                        } else {
-                                            result += '<button class = "btn btn-sm btn-default" type = "submit" name = "poweron" title = "Power On"> <span class = "glyphicon glyphicon-play"> </span> </button>'
-                                        }
-                                        return result + '<button class="btn btn-sm btn-default disabled" title="Suspend"> <span class="glyphicon glyphicon-pause"></span></button>'
-                                            + '<button class = "btn btn-sm btn-default disabled" title = "Power Off"> <span class = "glyphicon glyphicon-off" > </span> </button>'
-                                            + '<button class = "btn btn-sm btn-default disabled" title = "Power Cycle"> <span class = "glyphicon glyphicon-refresh" > </span> </button>'
-                                            + '<button class = "btn btn-sm btn-default disabled" title = "VNC Console"> <span class = "glyphicon glyphicon-eye-open" > </span> </button>';
-                                    }
-                                    else if (row[2] == 3) {
-                                        return '<button class="btn btn-sm btn-default" type="submit" name="resume" title="Resume"> <span class="glyphicon glyphicon-play"></span> </button>'
-                                            + '<button class="btn btn-sm btn-default disabled" title="Suspend"> <span class="glyphicon glyphicon-pause"></span> </button>'
-                                            + '<button class= "btn btn-sm btn-default disabled" title = "Power Off"> <span class= "glyphicon glyphicon-off" > </span> </button>'
-                                            + '<button class= "btn btn-sm btn-default disabled" title = "Power Cycle"> <span class= "glyphicon glyphicon-refresh" > </span> </button>'
-                                            + '<button class= "btn btn-sm btn-default disabled" title = "VNC Console"> <span class="glyphicon glyphicon-eye-open"></span> </button>';
-                                    }
-                                    else if (row[2] == 1) {
-                                        return '<button class= "btn btn-sm btn-default disabled" title = "Power On"> <span class= "glyphicon glyphicon-play" > </span> </button>'
-                                            + '<button class="btn btn-sm btn-default" type="submit" name="suspend" title="Suspend"> <span class="glyphicon glyphicon-pause"></span> </button>'
-                                            + '<button class= "btn btn-sm btn-default" type = "submit" name = "poweroff" title = "Power Off"> <span class= "glyphicon glyphicon-off" > </span> </button>'
-                                            + '<button class= "btn btn-sm btn-default" type = "submit" name = "powercycle" title = "Power Cycle" onclick = "return confirm(' + 'Are you sure ?' + ')" > <span class= "glyphicon glyphicon-refresh" > </span> </button>'
-                                            + '<a href = "#" class= "btn btn-sm btn-default" onclick = "open_console(' + row["compute_id"] + '-' + row["uuid"] + ')"' + 'title = "Console"> <span class= "glyphicon glyphicon-eye-open" > </span> </a>'
-                                    }
-                                },
-                                "targets": 5
-                            },
-                        ],
-
-                        "initComplete": function () {
-                            this.api().columns([1, 2, 3, 4]).every(function () {
-                                var column = this;
-                                var select = $('<select><option value=""></option></select>')
-                                    .appendTo($(column.footer()).empty())
-                                    .on('change', function () {
-                                        var val = $.fn.dataTable.util.escapeRegex(
-                                            $(this).val()
-                                        );
-                                        column
-                                            .search(val ? '^' + val + '$' : '', true, false)
-                                            .draw();
-                                    });
-
-                                column.cells('', column[0]).render('display').unique().sort().each(function (d, j) {
-                                    var val = $('<div/>').html(d).text();
-                                    select.append('<option value="' + val + '">' + val + '</option>');
-                                });
+                "initComplete": function () {
+                    this.api().columns([1, 2, 3, 4]).every(function () {
+                        var column = this;
+                        var select = $('<select><option value=""></option></select>')
+                            .appendTo($(column.footer()).empty())
+                            .on('change', function () {
+                                var val = $.fn.dataTable.util.escapeRegex(
+                                    $(this).val()
+                                );
+                                column
+                                    .search(val ? '^' + val + '$' : '', true, false)
+                                    .draw();
                             });
-                        }
+
+                        column.cells('', column[0]).render('display').unique().sort().each(function (d, j) {
+                            var val = $('<div/>').html(d).text();
+                            select.append('<option value="' + val + '">' + val + '</option>');
+                        });
                     });
                 }
             });
-        });
+        {#            $('#vms_table').DataTable({#}
+        {#                "processing": true,#}
+        {#                "serverSide": true,#}
+        {#                "paging": true,#}
+        {#                "lengthMenu": [[15, 25, 50, 100, -1], [15, 25, 50, 100, "All"]],#}
+        {#                "ajax": "/instance/data/",#}
+        {#                #}
+        {#                "columnDefs": [#}
+        {#                    {#}
+        {#                        // The `data` parameter refers to the data for the cell (defined by the#}
+        {#                        // `data` option, which defaults to the column being worked with, in#}
+        {#                        // this case `data: 0`.#}
+        {#                        "render": function (data, type, row) {#}
+        {#                            return row["name"];#}
+        {#                        },#}
+        {#                        "targets": 0#}
+        {#                    },#}
+        {#                    {#}
+        {#                        "render": function (data, type, row) {#}
+        {#                            console.log(row);#}
+        {#                            return row["comp_name"];#}
+        {#                        },#}
+        {#                        "targets": 1#}
+        {#                    },#}
+        {#                    {#}
+        {#                        "render": function (data, type, row) {#}
+        {#                            if (row["status"] == 1) {#}
+        {#                                return '<span class="text-success">{% trans "Active" %}</span>';#}
+        {#                            } else if (row["status"] == 5) {#}
+        {#                                return '<span class="text-danger">{% trans "Off" %}</span>';#}
+        {#                            } else if (row["status"] == 3) {#}
+        {#                                return '<span class= "text-warning" > {% trans "Suspend" %} < /span>';#}
+        {#                            }#}
+        {#                        },#}
+        {#                        "targets": 2#}
+        {#                    },#}
+        {#                    {#}
+        {#                        "render": function (data, type, row) {#}
+        {#                            return row["vcpu"];#}
+        {#                        },#}
+        {#                        "targets": 3#}
+        {#                    },#}
+        {#                    {#}
+        {#                        "render": function (data, type, row) {#}
+        {#                            return row["memory"] + " MB";#}
+        {#                        },#}
+        {#                        "targets": 4#}
+        {#                    },#}
+        {#                    {#}
+        {#                        "render": function (data, type, row) {#}
+        {#                            if (row["status"] == 5) {#}
+        {#                                var result = '';#}
+        {#                                if (row["is_template"]) {#}
+        {#                                    result += '<button class = "btn btn-sm btn-default" type = "button" name = "clone" title = "Clone" onclick = "goto_instance_clone(' + row["compute_id"] + ',' + row["name"] + ')">' + '<span class = "glyphicon glyphicon-duplicate" > </span> </button>'#}
+        {#                                } else {#}
+        {#                                    result += '<button class = "btn btn-sm btn-default" type = "submit" name = "poweron" title = "Power On"> <span class = "glyphicon glyphicon-play"> </span> </button>'#}
+        {#                                }#}
+        {#                                return result + '<button class="btn btn-sm btn-default disabled" title="Suspend"> <span class="glyphicon glyphicon-pause"></span></button>'#}
+        {#                                    + '<button class = "btn btn-sm btn-default disabled" title = "Power Off"> <span class = "glyphicon glyphicon-off" > </span> </button>'#}
+        {#                                    + '<button class = "btn btn-sm btn-default disabled" title = "Power Cycle"> <span class = "glyphicon glyphicon-refresh" > </span> </button>'#}
+        {#                                    + '<button class = "btn btn-sm btn-default disabled" title = "VNC Console"> <span class = "glyphicon glyphicon-eye-open" > </span> </button>';#}
+        {#                            }#}
+        {#                            else if (row["status"] == 3) {#}
+        {#                                return '<button class="btn btn-sm btn-default" type="submit" name="resume" title="Resume"> <span class="glyphicon glyphicon-play"></span> </button>'#}
+        {#                                    + '<button class="btn btn-sm btn-default disabled" title="Suspend"> <span class="glyphicon glyphicon-pause"></span> </button>'#}
+        {#                                    + '<button class= "btn btn-sm btn-default disabled" title = "Power Off"> <span class= "glyphicon glyphicon-off" > </span> </button>'#}
+        {#                                    + '<button class= "btn btn-sm btn-default disabled" title = "Power Cycle"> <span class= "glyphicon glyphicon-refresh" > </span> </button>'#}
+        {#                                    + '<button class= "btn btn-sm btn-default disabled" title = "VNC Console"> <span class="glyphicon glyphicon-eye-open"></span> </button>';#}
+        {#                            }#}
+        {#                            else if (row["status"] == 1) {#}
+        {#                                return '<button class= "btn btn-sm btn-default disabled" title = "Power On"> <span class= "glyphicon glyphicon-play" > </span> </button>'#}
+        {#                                    + '<button class="btn btn-sm btn-default" type="submit" name="suspend" title="Suspend"> <span class="glyphicon glyphicon-pause"></span> </button>'#}
+        {#                                    + '<button class= "btn btn-sm btn-default" type = "submit" name = "poweroff" title = "Power Off"> <span class= "glyphicon glyphicon-off" > </span> </button>'#}
+        {#                                    + '<button class= "btn btn-sm btn-default" type = "submit" name = "powercycle" title = "Power Cycle" onclick = "return confirm(' + 'Are you sure ?' + ')" > <span class= "glyphicon glyphicon-refresh" > </span> </button>'#}
+        {#                                    + '<a href = "#" class= "btn btn-sm btn-default" onclick = "open_console(' + row["compute_id"] + '-' + row["uuid"] + ')"' + 'title = "Console"> <span class= "glyphicon glyphicon-eye-open" > </span> </a>'#}
+        {#                            }#}
+        {#                        },#}
+        {#                        "targets": 5#}
+        {#                    },#}
+        {#                ],#}
+        {##}
+        {#                "initComplete": function () {#}
+        {#                    this.api().columns().every(function () {#}
+        {#                        var column = this;#}
+        {#                        var select = $('<select><option value=""></option></select>')#}
+        {#                            .appendTo($(column.footer()).empty())#}
+        {#                            .on('change', function () {#}
+        {#                                var val = $.fn.dataTable.util.escapeRegex(#}
+        {#                                    $(this).val()#}
+        {#                                );#}
+        {#                                var data = column.data();#}
+        {#                                column#}
+        {#                                    .search(val ? '^' + val + '$' : '', true, false)#}
+        {#                                    .draw();#}
+        {#                            });#}
+        {##}
+        {#                        column.cells('', column[0]).render('display').unique().sort().each(function (d, j) {#}
+        {#                            var val = $('<div/>').html(d).text();#}
+        {#                            select.append( '<option value="' + val + '">' + val + '</option>' );#}
+        {#                        });#}
+        {#                    });#}
+        {#                }#}
+        {#            });#}
+        {#            $.ajax({#}
+        {#                url: "/instance/data/",#}
+        {#                type: 'GET',#}
+        {#                dataType: 'json',#}
+        {#                success: function (data) {#}
+        {#                    $('#vms_table').DataTable({#}
+        {#                        "paging": true,#}
+        {#                        "lengthMenu": [[15, 25, 50, 100, -1], [15, 25, 50, 100, "All"]],#}
+        {#                        "data": data.data,#}
+        {##}
+        {#                        "columnDefs": [#}
+        {#                            {#}
+        {#                                // The `data` parameter refers to the data for the cell (defined by the#}
+        {#                                // `data` option, which defaults to the column being worked with, in#}
+        {#                                // this case `data: 0`.#}
+        {#                                "render": function (data, type, row) {#}
+        {#                                    return '<a href="/instance/' + row[5] + '/' + row[0] + '">' + data + '</a>'#}
+        {#                                },#}
+        {#                                "targets": 0#}
+        {#                            },#}
+        {#                            {#}
+        {#                                "render": function (data, type, row) {#}
+        {#                                    return '<a href="/computes/overview/' + row[5] + '/' + '">' + data + '</a>';#}
+        {#                                },#}
+        {#                                "targets": 1#}
+        {#                            },#}
+        {#                            {#}
+        {#                                "render": function (data, type, row) {#}
+        {#                                    if (data == 1) {#}
+        {#                                        return '<span class="text-success">Active</span>';#}
+        {#                                    } else if (data == 5) {#}
+        {#                                        return '<span class="text-danger">Off</span>';#}
+        {#                                    } else if (data == 3) {#}
+        {#                                        return '<span class= "text-warning">Suspend</span>';#}
+        {#                                    }#}
+        {#                                },#}
+        {#                                "targets": 2#}
+        {#                            },#}
+        {#                            {#}
+        {#                                "render": function (data, type, row) {#}
+        {#                                    return data;#}
+        {#                                },#}
+        {#                                "targets": 3#}
+        {#                            },#}
+        {#                            {#}
+        {#                                "render": function (data, type, row) {#}
+        {#                                    return data + " MB";#}
+        {#                                },#}
+        {#                                "targets": 4#}
+        {#                            },#}
+        {#                            {#}
+        {#                                "render": function (data, type, row) {#}
+        {#                                    if (row[2] == 5) {#}
+        {#                                        return '<button class = "btn btn-sm btn-default" type = "submit" name = "poweron" title = "Power On"> <span class = "glyphicon glyphicon-play"> </span> </button>'#}
+        {#                                            + '<button class="btn btn-sm btn-default disabled" title="Suspend"> <span class="glyphicon glyphicon-pause"></span></button>'#}
+        {#                                            + '<button class = "btn btn-sm btn-default disabled" title = "Power Off"> <span class = "glyphicon glyphicon-off" > </span> </button>'#}
+        {#                                            + '<button class = "btn btn-sm btn-default disabled" title = "Power Cycle"> <span class = "glyphicon glyphicon-refresh" > </span> </button>'#}
+        {#                                            + '<button class = "btn btn-sm btn-default disabled" title = "VNC Console"> <span class = "glyphicon glyphicon-eye-open" > </span> </button>';#}
+        {#                                    }#}
+        {#                                    else if (row[2] == 3) {#}
+        {#                                        return '<button class="btn btn-sm btn-default" type="submit" name="resume" title="Resume"> <span class="glyphicon glyphicon-play"></span> </button>'#}
+        {#                                            + '<button class="btn btn-sm btn-default disabled" title="Suspend"> <span class="glyphicon glyphicon-pause"></span> </button>'#}
+        {#                                            + '<button class= "btn btn-sm btn-default disabled" title = "Power Off"> <span class= "glyphicon glyphicon-off" > </span> </button>'#}
+        {#                                            + '<button class= "btn btn-sm btn-default disabled" title = "Power Cycle"> <span class= "glyphicon glyphicon-refresh" > </span> </button>'#}
+        {#                                            + '<button class= "btn btn-sm btn-default disabled" title = "VNC Console"> <span class="glyphicon glyphicon-eye-open"></span> </button>';#}
+        {#                                    }#}
+        {#                                    else if (row[2] == 1) {#}
+        {#                                        return '<button class= "btn btn-sm btn-default disabled" title = "Power On"> <span class= "glyphicon glyphicon-play" > </span> </button>'#}
+        {#                                            + '<button class="btn btn-sm btn-default" type="submit" name="suspend" title="Suspend"> <span class="glyphicon glyphicon-pause"></span> </button>'#}
+        {#                                            + '<button class= "btn btn-sm btn-default" type = "submit" name = "poweroff" title = "Power Off"> <span class= "glyphicon glyphicon-off" > </span> </button>'#}
+        {#                                            + '<button class= "btn btn-sm btn-default" type = "submit" name = "powercycle" title = "Power Cycle" onclick = "return confirm(' + 'Are you sure ?' + ')" > <span class= "glyphicon glyphicon-refresh" > </span> </button>'#}
+        {#                                            + '<a href = "#" class= "btn btn-sm btn-default" onclick = "open_console(' + row["compute_id"] + '-' + row["uuid"] + ')"' + 'title = "Console"> <span class= "glyphicon glyphicon-eye-open" > </span> </a>'#}
+        {#                                    }#}
+        {#                                },#}
+        {#                                "targets": 5#}
+        {#                            },#}
+        {#                        ],#}
+        {##}
+        {#                        "initComplete": function () {#}
+        {#                            this.api().columns([1, 2, 3, 4]).every(function () {#}
+        {#                                var column = this;#}
+        {#                                var select = $('<select><option value=""></option></select>')#}
+        {#                                    .appendTo($(column.footer()).empty())#}
+        {#                                    .on('change', function () {#}
+        {#                                        var val = $.fn.dataTable.util.escapeRegex(#}
+        {#                                            $(this).val()#}
+        {#                                        );#}
+        {#                                        column#}
+        {#                                            .search(val ? '^' + val + '$' : '', true, false)#}
+        {#                                            .draw();#}
+        {#                                    });#}
+        {##}
+        {#                                column.cells('', column[0]).render('display').unique().sort().each(function (d, j) {#}
+        {#                                    var val = $('<div/>').html(d).text();#}
+        {#                                    select.append('<option value="' + val + '">' + val + '</option>');#}
+        {#                                });#}
+        {#                            });#}
+        {#                        }#}
+        {#                    });#}
+        {#                }#}
+        {#            });#}
+        })
+        ;
     </script>
     <script>
         function goto_instance_clone(compute, instance) {

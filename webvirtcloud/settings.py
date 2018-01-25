@@ -61,8 +61,22 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'USER': 'root',
         'PASSWORD': 'Czn@0011',
-        'HOST': '192.168.221.156',
+        'HOST': '192.168.16.158',
         'PORT': '3306'
+    }
+}
+# Cache
+CACHES = {
+    # 'default': {
+    #     'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    #     'LOCATION': 'default',
+    # }
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
     }
 }
 
@@ -121,3 +135,24 @@ CLONE_INSTANCE_DEFAULT_PREFIX = 'ourea'
 LOGS_PER_PAGE = 100
 QUOTA_DEBUG = True
 ALLOW_EMPTY_PASSWORD = True
+
+# Celery settings
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_TIMEZONE = 'Asia/Shanghai'
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_BEAT_SCHEDULE = {
+    # 'test_print': {
+    #     'schedule': 3.0,
+    #     'task': 'instances.tasks.test_print'
+    # }
+    # 'test_logger': {
+    #     'schedule': 3.0,
+    #     'task': 'instances.tasks.test_logger'
+    # }
+    'update_kvm_status': {
+        'schedule': 60.0,
+        'task': 'instances.tasks.update_kvm_status'
+    }
+}

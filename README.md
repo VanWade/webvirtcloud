@@ -11,6 +11,9 @@
 How to update <code>gstfsd</code> daemon on hypervisor:
 
 ```bash
+yum search guestfs
+yum install libguestfs-devel -y
+pip install http://download.libguestfs.org/python/guestfs-1.34.5.tar.gz
 wget -O - https://clck.ru/9VMRH | sudo tee -a /usr/local/bin/gstfsd
 sudo service supervisor restart
 ```
