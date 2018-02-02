@@ -40,7 +40,7 @@ def create_instance(request, compute_id):
         storages = sorted(conn.get_storages())
         networks = sorted(conn.get_networks())
         instances = conn.get_instances()
-        get_images = sorted(conn.get_storages_images())
+        get_images = sorted([image for image in conn.get_storages_images() if image.endswith('tmpl')])
         cache_modes = sorted(conn.get_cache_modes().items())
         mac_auto = util.randomMAC()
     except libvirtError as lib_err:
@@ -113,16 +113,17 @@ def create_instance(request, compute_id):
                             clone_path = conn.clone_from_template(data['name'], templ_path, metadata=meta_prealloc)
                             volumes[clone_path] = conn.get_volume_type(clone_path)
                         else:
-                            if not data['images']:
+                            if not data['image']:
                                 error_msg = _("First you need to create or select an image")
                                 error_messages.append(error_msg)
                             else:
-                                for vol in data['images'].split(','):
-                                    try:
-                                        path = conn.get_volume_path(vol)
-                                        volumes[path] = conn.get_volume_type(path)
-                                    except libvirtError as lib_err:
-                                        error_messages.append(lib_err.message)
+                                tmpl_image = data['image']
+                                try:
+                                    tmpl_image_path = conn.get_volume_path(tmpl_image)
+                                    clone_image_path = conn.clone_from_template(data['name'], tmpl_image_path, metadata=meta_prealloc)
+                                    volumes[clone_image_path] = conn.get_volume_type(clone_image_path)
+                                except libvirtError as lib_err:
+                                    error_messages.append(lib_err.message)
                         if data['cache_mode'] not in conn.get_cache_modes():
                             error_msg = _("Invalid cache mode")
                             error_messages.append(error_msg)
@@ -130,10 +131,11 @@ def create_instance(request, compute_id):
                             uuid = util.randomUUID()
                             try:
                                 conn.create_instance(data['name'], data['memory'], data['vcpu'], data['host_model'],
-                                                     uuid, volumes, data['cache_mode'], data['networks'], data['virtio'],
+                                                     uuid, volumes, data['cache_mode'], data['networks'],
+                                                     data['virtio'],
                                                      data['mac'])
-                                create_instance = Instance(compute_id=compute_id, name=data['name'], uuid=uuid)
-                                create_instance.save()
+                                new_instance = Instance(compute_id=compute_id, name=data['name'], uuid=uuid)
+                                new_instance.save()
                                 return HttpResponseRedirect(reverse('instance', args=[compute_id, data['name']]))
                             except libvirtError as lib_err:
                                 if data['hdd_size']:

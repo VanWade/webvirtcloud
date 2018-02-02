@@ -67,6 +67,8 @@ def update_kvm_status():
                     all_vms.append(vm)
             except Exception as e:
                 logger.error(e)
+            finally:
+                logger.info('Connection to host {} has been closed'.format(conn.host))
                 conn.close()
     logger.info('Caching all_vms:{}'.format(all_vms))
     caches['default'].set('all_vms', all_vms, None)
